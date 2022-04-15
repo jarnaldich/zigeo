@@ -1,0 +1,6 @@
+id: bf15zlvtvnd9kurbnb71nfpkepbyjxyzsfac2yuc5nt6bym3
+name: zigeo
+license: GPLv3
+description: Geospatial command-line util
+root_dependencies:
+  - src: git https://github.com/Hejsil/zig-clap
