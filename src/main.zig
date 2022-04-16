@@ -3,23 +3,71 @@ const clap = @import("clap");
 
 const io = std.io;
 const print = std.debug.print; 
+const assert = std.debug.assert;
+
+pub fn syntaxMsg() void {
+    print(
+        \\
+        \\zigeo - Utilities for geospatial data processing
+        \\
+        \\Syntax: zigeo [-h|--help] <command>
+        \\
+        \\Options:
+        \\  -h, --help: print this help and exit.
+        \\
+        \\Commands:
+        \\  edit - in-place editing of information (think gdal_edit.py)
+        \\
+        \\Further information on subcommands can be found by executing:
+        \\  zigeo <command> [-h|--help]
+        \\
+    , .{});
+}
+
+const Command = enum {
+    edit
+};
+
+const edit_params = [_]clap.Param(clap.Help){
+    clap.parseParam("-h, --help             Display this help and exit.              ") catch unreachable,
+    clap.parseParam("-n, --nodata <INT>     An option parameter, which takes a value.") catch unreachable,
+//        clap.parseParam("-s, --string <STR>...  An option parameter which can be specified multiple times.") catch unreachable,
+    clap.parseParam("<fname>...") catch unreachable,
+};
+ 
+pub fn do_edit(allocator: std.mem.Allocator, iter: *clap.args.OsIterator) !void {
+    var diag = clap.Diagnostic{};
+    var args = clap.parseEx(clap.Help, &edit_params, iter, .{ .diagnostic = &diag, .allocator = allocator }) catch |err| {
+        // Report useful error and exit
+        diag.report(io.getStdErr().writer(), err) catch {};
+        return err;
+    };
+
+    if (args.option("--nodata")) |n| print("--nodata = {s}\n", .{n});
+}
 
 pub fn main() anyerror!void {
-    std.log.info("All your codebase are belong to us.", .{});
+    // Arena allocator is recommended for cmd-line apps such as this one, where
+    // memory can be freed at the end, all at once, according to docs...
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
 
-    const allocator = std.heap.page_allocator;
+    const allocator = arena.allocator();
 
     var iter = try std.process.ArgIterator.initWithAllocator(allocator);
     defer iter.deinit();
-
+    print("{s}\n", .{@typeName(@TypeOf(iter))});
+ 
     // Skip exe arg
     _ = iter.next(allocator);
+
     const params = comptime [_]clap.Param(clap.Help){
         clap.parseParam("-h, --help             Display this help and exit.              ") catch unreachable,
+        clap.parseParam("-n, --nodata             Display this help and exit.              ") catch unreachable,
 //        clap.parseParam("-n, --number <INT>     An option parameter, which takes a value.") catch unreachable,
 //        clap.parseParam("-s, --string <STR>...  An option parameter which can be specified multiple times.") catch unreachable,
-        clap.parseParam("<POS>") catch unreachable,
-    };
+        clap.parseParam("<POS>...") catch unreachable,
+    } ++ edit_params;
     _ = params;
 
     var diag = clap.Diagnostic{};
@@ -29,20 +77,44 @@ pub fn main() anyerror!void {
         return err;
     };
     defer args.deinit();
-    print("{s}\n", .{@typeName(@TypeOf(args.positionals()))});
 
-    if (args.flag("--help"))
-        print("--help\n", .{});
+    if (args.flag("--help")) {
+        syntaxMsg();
+        std.os.exit(0);
+    }
 
 //    if (args.option("--number")) |n| print("--number = {s}\n", .{n});
 //    for (args.options("--string")) |s| print("--string = {s}\n", .{s});
-    for (args.positionals()) |pos|
-        print("{s}\n", .{pos});
+//    for (args.positionals()) |pos| print("{s}\n", .{pos});
 
     if (args.positionals().len < 1) {
-        print("Syntax...", .{});
+        syntaxMsg();
         std.os.exit(1);
     }
+    var arg_iter = try clap.args.OsIterator.init(allocator);
+ 
+    const cmdString = args.positionals()[0];
+    brk: while(arg_iter.next()) |param| {
+        if(param) |val| {
+            if(std.mem.eql(u8, val, cmdString)) {
+                print("Found {s}\n", .{val});
+                break :brk;
+            }
+        }
+    }  else |_| {
+       unreachable; 
+    }
+
+    const cmd = std.meta.stringToEnum(Command, cmdString) orelse {
+        print("Unknown command: {s}\n", .{ cmdString });
+        std.os.exit(1);
+    };
+
+    switch(cmd) {
+        .edit => try do_edit(allocator, &arg_iter),
+    }
+
+
 
 //    print("{s}\n", .{ command });
 //    if (args.positionals()[0]) |pos| print("{s}\n", .{pos});
