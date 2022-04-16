@@ -15,6 +15,11 @@ pub fn build(b: *std.build.Builder) void {
 
     const exe = b.addExecutable("zigeo", "src/main.zig");
     exe.setTarget(target);
+    exe.linkLibC();
+//    exe.addIncludeDir("C:\\Users\\j.arnaldich\\repos\\geosak\\external\\gdal-3.3.2\\include\\");
+//    exe.addLibPath("C:\\Users\\j.arnaldich\\repos\\geosak\\external\\gdal-3.3.2\\lib\\");
+    exe.linkSystemLibraryName("gdal");
+ 
     exe.setBuildMode(mode);
     deps.addAllTo(exe);
     exe.install();
@@ -30,6 +35,8 @@ pub fn build(b: *std.build.Builder) void {
 
     const exe_tests = b.addTest("src/main.zig");
     exe_tests.setTarget(target);
+    exe_tests.linkLibC();
+    exe_tests.linkSystemLibraryName("gdal");
     exe_tests.setBuildMode(mode);
 
     const test_step = b.step("test", "Run unit tests");

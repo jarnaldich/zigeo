@@ -1,5 +1,6 @@
 const std = @import("std");
 const clap = @import("clap");
+const zigdal = @import("zigdal.zig");
 
 const io = std.io;
 const print = std.debug.print; 
@@ -28,6 +29,7 @@ const Command = enum {
     edit
 };
 
+// ----------------------------------- EDIT ----------------------------------------
 const edit_params = [_]clap.Param(clap.Help){
     clap.parseParam("-h, --help             Display this help and exit.              ") catch unreachable,
     clap.parseParam("-n, --nodata <INT>     An option parameter, which takes a value.") catch unreachable,
@@ -43,12 +45,21 @@ pub fn do_edit(allocator: std.mem.Allocator, iter: *clap.args.OsIterator) !void 
         return err;
     };
 
-    if (args.option("--nodata")) |n| print("--nodata = {s}\n", .{n});
+    if (args.option("--nodata")) |n| {
+        print("--nodata = {s}\n", .{n});
+        for (args.positionals()) |pos| {
+            const ds = zigdal.open(pos, zigdal.Access.ReadOnly);
+            print("{s}\n", .{pos});
+            print("{s}\n", .{ds});
+        }
+    } 
 }
 
 pub fn main() anyerror!void {
     // Arena allocator is recommended for cmd-line apps such as this one, where
     // memory can be freed at the end, all at once, according to docs...
+    zigdal.init();
+
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
@@ -125,4 +136,5 @@ pub fn main() anyerror!void {
 
 test "basic test" {
     try std.testing.expectEqual(10, 3 + 7);
+    _ = @import("zigdal.zig");
 }
