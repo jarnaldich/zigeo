@@ -45,10 +45,20 @@ pub fn do_edit(allocator: std.mem.Allocator, iter: *clap.args.OsIterator) !void 
         return err;
     };
 
-    if (args.option("--nodata")) |n| {
-        print("--nodata = {s}\n", .{n});
+    if (args.option("--nodata")) |nodataStr| {
         for (args.positionals()) |pos| {
-            const ds = zigdal.open(pos, zigdal.Access.ReadOnly);
+            const ds = try zigdal.open(pos, zigdal.Access.Update);
+            defer zigdal.close(ds);
+
+            const nodataVal = try std.fmt.parseFloat(f64, nodataStr);
+            const numBands = zigdal.getRasterCount(ds);
+            var iBand : u32 = 1;
+            while(iBand <= numBands) : (iBand += 1) {
+                const band = try zigdal.getRasterBand(ds, iBand);
+                try zigdal.setRasterNoDataValue(band, nodataVal); 
+            }
+            
+            _ = nodataVal;
             print("{s}\n", .{pos});
             print("{s}\n", .{ds});
         }
