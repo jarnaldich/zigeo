@@ -28,6 +28,8 @@ pub fn build(b: *std.build.Builder) void {
         exe.addLibPath(libdir);
     }
 
+    exe.addIncludeDir("/usr/include/gdal");
+
     if(dll) {
         exe.linkSystemLibraryName("gdal_i");
     } else {

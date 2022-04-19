@@ -40,7 +40,6 @@ const Command = enum {
 const edit_params = [_]clap.Param(clap.Help){
     clap.parseParam("-h, --help             Display this help and exit.              ") catch unreachable,
     clap.parseParam("-n, --nodata <FLOAT>     An option parameter, which takes a value.") catch unreachable,
-//        clap.parseParam("-s, --string <STR>...  An option parameter which can be specified multiple times.") catch unreachable,
     clap.parseParam("<FILE>...") catch unreachable,
 };
  
