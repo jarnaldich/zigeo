@@ -8,6 +8,10 @@ pub fn build(b: *std.build.Builder) void {
     // means any target is allowed, and the default is native. Other options
     // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
+    const dll = b.option(bool, "dll", "Use external dll (link against gdal_i)") orelse false;
+
+    const gdal_home = std.process.getEnvVarOwned(b.allocator, "GDAL_HOME") catch "";
+    defer b.allocator.free(gdal_home);
 
     // Standard release options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
@@ -16,9 +20,19 @@ pub fn build(b: *std.build.Builder) void {
     const exe = b.addExecutable("zigeo", "src/main.zig");
     exe.setTarget(target);
     exe.linkLibC();
-//    exe.addIncludeDir("C:\\Users\\j.arnaldich\\repos\\geosak\\external\\gdal-3.3.2\\include\\");
-//    exe.addLibPath("C:\\Users\\j.arnaldich\\repos\\geosak\\external\\gdal-3.3.2\\lib\\");
-    exe.linkSystemLibraryName("gdal");
+    if(gdal_home.len > 0)   {
+        var buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+        const includedir = std.fmt.bufPrint(&buffer, "{s}include\\", .{ gdal_home }) catch unreachable;
+        exe.addIncludeDir(includedir);
+        const libdir = std.fmt.bufPrint(&buffer, "{s}lib\\", .{ gdal_home }) catch unreachable;
+        exe.addLibPath(libdir);
+    }
+
+    if(dll) {
+        exe.linkSystemLibraryName("gdal_i");
+    } else {
+        exe.linkSystemLibraryName("gdal");
+    }
  
     exe.setBuildMode(mode);
     deps.addAllTo(exe);

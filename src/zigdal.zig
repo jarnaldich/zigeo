@@ -45,7 +45,7 @@ pub const DataType = enum(u32) {
     }
 };
 
-pub const Access = enum(u32) {
+pub const Access = enum(c_uint) {
     ReadOnly = gdal.GA_ReadOnly,
     Update = gdal.GA_Update,
 };
