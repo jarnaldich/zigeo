@@ -12,3 +12,18 @@ To fetch the `clap` dependency,  [zigmod](https://github.com/nektro/zigmod) is n
 # references for mis. tasks  in no particular order
 
 - https://stackoverflow.com/questions/66527365/how-to-concat-two-string-literals-at-compile-time-in-zig
+
+# Development notes
+
+
+To build on Windows
+
+```
+zig build -Ddll
+```
+
+To run tests included in build.zig
+
+```
+zig build test -Ddll
+```

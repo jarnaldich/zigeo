@@ -2,6 +2,7 @@ const std = @import("std");
 const gdal = @cImport({
     @cInclude("gdal.h");
 });
+const ogr_srs = @import("ogr_srs.zig");
 
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -67,6 +68,7 @@ pub const Band    = Handle();
 pub const DataSet = Handle();
 pub const Driver  = Handle();
 
+
 pub fn open(fname: []const u8, access: Access) !DataSet {
     var buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
     std.mem.copy(u8, buffer[0..fname.len], fname);
@@ -77,6 +79,10 @@ pub fn open(fname: []const u8, access: Access) !DataSet {
         return DataSet{ .handle = handle };
     }
     return error.OpenError;
+}
+
+pub fn setSpatialRef(ds: DataSet, sr: ogr_srs.SpatialReference) !void {
+    return toError(gdal.GDALSetSpatialRef(ds.handle, sr.handle));
 }
 
 pub fn close(ds: DataSet) void {
@@ -156,9 +162,11 @@ pub fn setRasterNoDataValue(b: Band, nodata: f64) CPLError!void {
     return toError(gdal.GDALSetRasterNoDataValue(b.handle, nodata));
 }
 
+
 pub fn deleteRasterNoDataValue(b: Band) CPLError!void {
     return toError(gdal.GDALDeleteRasterNoDataValue(b.handle));
 }
+
 
 pub fn getRasterNoDataValue(b: Band) !f64 {
     var i : c_int = 0;

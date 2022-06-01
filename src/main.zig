@@ -1,15 +1,30 @@
 const std = @import("std");
 const clap = @import("clap");
 const zigdal = @import("zigdal.zig");
+const ogr_srs = @import("ogr_srs.zig");
+const zig_arg = @import("zig-arg");
 
 const io = std.io;
 const print = std.debug.print; 
 const assert = std.debug.assert;
+const fmt = std.fmt;
+
+pub fn parseFloat(comptime T: type) fn ([]const u8) fmt.ParseFloatError!T {
+    return struct {
+        fn parse(in: []const u8) fmt.ParseFloatError!T {
+            var tmp: [32]u8 = [_]u8{0} ** 32;
+            std.mem.copy(u8, tmp[0..32], in);
+            if(tmp[0] == '_') tmp[0] = '-';
+            return fmt.parseFloat(T, tmp[0.. in.len]);
+        }
+    }.parse;
+}
+
 const parsers = .{
     .STR = clap.parsers.string,
     .FILE = clap.parsers.string,
     .INT = clap.parsers.int(usize, 10),
-    .FLOAT = clap.parsers.float(f64),
+    .FLOAT = parseFloat(f64),
 };
 
 
@@ -57,6 +72,7 @@ pub fn do_edit(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !vo
             defer zigdal.close(ds);
 
             const nodataVal = nodataStr; // try std.fmt.parseFloat(f64, nodataStr);
+            print("Setting Nodata: {d}\n", .{nodataVal});
             const numBands = zigdal.getRasterCount(ds);
             var iBand : u32 = 1;
             while(iBand <= numBands) : (iBand += 1) {
@@ -71,7 +87,7 @@ pub fn do_edit(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !vo
     } 
 }
 
-pub fn main() anyerror!void {
+pub fn main2() anyerror!void {
     // Arena allocator is recommended for cmd-line apps such as this one, where
     // memory can be freed at the end, all at once, according to docs...
     zigdal.init();
@@ -152,7 +168,75 @@ pub fn main() anyerror!void {
 
 }
 
+pub fn main() anyerror!void {
+    // Arena allocator is recommended for cmd-line apps such as this one, where
+    // memory can be freed at the end, all at once, according to docs...
+    zigdal.init();
+
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    const argv = try std.process.argsAlloc(allocator);
+
+    var app = zig_arg.Command.new(allocator, "app");
+    try app.addArg(zig_arg.flag.boolean("help", 'h'));
+    defer app.deinit();
+
+    var edit = zig_arg.Command.new(allocator, "edit");
+    try edit.addArg(zig_arg.flag.boolean("help", 'h'));
+    try edit.addArg(zig_arg.flag.argOne("nodata", null));
+    try edit.addArg(zig_arg.flag.argOne("refsys", 'r'));
+    try edit.addArg(zig_arg.flag.argOne("output", 'o'));
+    try app.addSubcommand(edit);
+
+    var app_args = app.parse(argv[1..]) catch {
+            print("SYNTAX ERROR: {s}\n", .{argv[0]});
+            syntaxMsg();
+            std.os.exit(1);
+    };
+
+    defer app_args.deinit();
+    if(app_args.isPresent("help")) {
+        syntaxMsg();
+        std.os.exit(0);
+    }
+
+    if(app_args.subcommandMatches("edit")) |edit_args| {
+
+        print("Edit", .{});
+        if(edit_args.isPresent("help")) {
+            print("Edit HELP", .{});
+            std.os.exit(0);
+        }
+
+
+        if(edit_args.valueOf("refsys")) |refsys| {
+            var epsg = try fmt.parseInt(c_int, refsys, 10); 
+            // catch {
+            //    print("refsys arg should be an integer (EPSG code)", .{ refsys });
+            //};
+
+            if(edit_args.valueOf("output")) |fname| {
+                const rs = try ogr_srs.newSpatialReferenceFromEPSG(epsg);
+                const ds = try zigdal.open(fname, zigdal.Access.Update);
+
+                try zigdal.setSpatialRef(ds, rs);
+
+
+            }
+        }
+
+        std.os.exit(0);
+    }
+
+
+
+}
+
 test "basic test" {
     try std.testing.expectEqual(10, 3 + 7);
     _ = @import("zigdal.zig");
+    _ = @import("ogr_srs.zig");
 }
